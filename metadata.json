@@ -1,0 +1,5 @@
+{
+  "name": "Secure Vault",
+  "description": "A high-security, client-side file encryption tool featuring military-grade AES-GCM encryption and a sleek, immersive user experience.",
+  "requestFramePermissions": []
+}
