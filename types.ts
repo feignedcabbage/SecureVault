@@ -1,7 +1,8 @@
 export enum AppRoute {
   HOME = 'home',
   ENCRYPT = 'encrypt',
-  DECRYPT = 'decrypt'
+  DECRYPT = 'decrypt',
+  RETRIEVE = 'retrieve'
 }
 
 export interface FileProcessState {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Lock, Unlock, Shield } from 'lucide-react';
+import { Lock, Unlock, Shield, DownloadCloud } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, useScroll, useSpring } from 'framer-motion';
 
@@ -19,6 +19,7 @@ const Navbar: React.FC = () => {
     if (isActive) {
       if (path === '/encrypt') return `${baseClass} bg-emerald-500/10 text-emerald-400 border border-emerald-500/20`;
       if (path === '/decrypt') return `${baseClass} bg-cyan-500/10 text-cyan-400 border border-cyan-500/20`;
+      if (path === '/retrieve') return `${baseClass} bg-indigo-500/10 text-indigo-400 border border-indigo-500/20`;
       return baseClass;
     }
     
@@ -41,6 +42,10 @@ const Navbar: React.FC = () => {
           <Link to="/encrypt" className={getLinkClass('/encrypt')}>
             <Lock className="w-4 h-4" />
             <span className="text-sm font-medium hidden sm:inline">Encrypt</span>
+          </Link>
+          <Link to="/retrieve" className={getLinkClass('/retrieve')}>
+            <DownloadCloud className="w-4 h-4" />
+            <span className="text-sm font-medium hidden sm:inline">Receive</span>
           </Link>
           <Link to="/decrypt" className={getLinkClass('/decrypt')}>
             <Unlock className="w-4 h-4" />

@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FileUp, Lock, RefreshCw, CheckCircle, AlertCircle, Download, Archive, 
-  Share2, HardDrive, Clock, Copy, CloudUpload, EyeOff 
+  Share2, HardDrive, Clock, Copy, CloudUpload, EyeOff, ServerOff
 } from 'lucide-react';
 import { encryptFile } from '../utils/crypto';
 import { FileProcessState } from '../types';
@@ -18,11 +18,39 @@ const EncryptPage: React.FC = () => {
   const [hideFilename, setHideFilename] = useState(false);
   
   // Share specific state
-  const [expiry, setExpiry] = useState('1d');
-  const [shareLink, setShareLink] = useState<string | null>(null);
+  const [expiry, setExpiry] = useState('24h');
+  const [shareCode, setShareCode] = useState<string | null>(null);
+  const [serviceAvailable, setServiceAvailable] = useState<boolean>(true);
+  const [checkingService, setCheckingService] = useState<boolean>(false);
   
   const [processState, setProcessState] = useState<FileProcessState>({ status: 'idle' });
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Check service health when mode changes to share
+    const checkService = async () => {
+      if (mode === 'share') {
+        setCheckingService(true);
+        try {
+            await fetch('https://filecryption.duckdns.org/api/upload', { 
+                method: 'POST', 
+                body: new FormData() 
+            });
+            setServiceAvailable(true);
+        } catch (e) {
+            console.warn("Service check failed:", e);
+            if (e instanceof TypeError) {
+                 setServiceAvailable(false);
+            } else {
+                 setServiceAvailable(true);
+            }
+        } finally {
+            setCheckingService(false);
+        }
+      }
+    };
+    checkService();
+  }, [mode]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -30,22 +58,21 @@ const EncryptPage: React.FC = () => {
       setProcessState({ status: 'idle' });
       if (downloadUrl) URL.revokeObjectURL(downloadUrl);
       setDownloadUrl(null);
-      setShareLink(null);
+      setShareCode(null);
     }
   };
 
   const handleModeChange = (newMode: EncryptMode) => {
     setMode(newMode);
     setProcessState({ status: 'idle' });
-    setShareLink(null);
+    setShareCode(null);
     setDownloadUrl(null);
-    // Auto-enable gzip for sharing, optional for download
     if (newMode === 'share') setUseGzip(true);
   };
 
   const copyToClipboard = () => {
-    if (shareLink) {
-      navigator.clipboard.writeText(shareLink);
+    if (shareCode) {
+      navigator.clipboard.writeText(shareCode);
     }
   };
 
@@ -58,7 +85,6 @@ const EncryptPage: React.FC = () => {
       return;
     }
 
-    // 10MB Limit Validation for Share Mode
     if (mode === 'share' && file.size > 10 * 1024 * 1024) {
       setProcessState({ status: 'error', message: 'File is too large for sharing (Max 10MB).' });
       return;
@@ -67,7 +93,6 @@ const EncryptPage: React.FC = () => {
     setProcessState({ status: 'processing', message: 'Encrypting...', progress: 0 });
 
     try {
-      // Common Step: Local Encryption
       const encryptedBlob = await encryptFile(file, password, useGzip);
 
       if (mode === 'download') {
@@ -75,32 +100,31 @@ const EncryptPage: React.FC = () => {
         setDownloadUrl(url);
         setProcessState({ status: 'success', message: 'Encryption Complete' });
       } else {
-        // Share Mode: Mock Upload
-        setProcessState({ status: 'processing', message: 'Uploading secure container...', progress: 20 });
+        // Share Mode: Upload to API
+        setProcessState({ status: 'processing', message: 'Uploading to Secure Relay...', progress: 50 });
         
-        // Mock progress animation
-        const interval = setInterval(() => {
-          setProcessState(prev => {
-            if (prev.progress && prev.progress >= 95) {
-              clearInterval(interval);
-              return prev;
-            }
-            return { ...prev, progress: (prev.progress || 20) + 10 };
-          });
-        }, 300);
+        const formData = new FormData();
+        formData.append('file', encryptedBlob, 'encrypted_data.bin');
+        formData.append('duration', expiry);
 
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 2500));
-        clearInterval(interval);
+        const response = await fetch('https://filecryption.duckdns.org/api/upload', {
+          method: 'POST',
+          body: formData
+        });
 
-        const randomId = Math.random().toString(36).substring(2, 10);
-        setShareLink(`https://securevault.app/s/${randomId}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Upload failed');
+        }
+
+        setShareCode(data.shareCode);
         setProcessState({ status: 'success', message: 'Ready to share' });
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      setProcessState({ status: 'error', message: 'Processing failed. Please try again.' });
+      setProcessState({ status: 'error', message: error.message || 'Processing failed. Please try again.' });
     }
   };
 
@@ -154,9 +178,25 @@ const EncryptPage: React.FC = () => {
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <CloudUpload className="w-4 h-4" /> Create Link
+                <CloudUpload className="w-4 h-4" /> Secure Relay
               </button>
             </div>
+            
+            {/* Service Status Warning */}
+            <AnimatePresence>
+                {isShare && !serviceAvailable && !checkingService && (
+                    <motion.div 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-lg flex items-center gap-2 text-xs"
+                    >
+                        <ServerOff className="w-4 h-4" />
+                        Service Unavailable. The backend relay is unreachable.
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -262,7 +302,7 @@ const EncryptPage: React.FC = () => {
                 >
                   <div className="bg-slate-950 rounded-xl border border-slate-800 p-3 mb-4">
                       <label className="flex items-center gap-2 text-sm text-slate-400 mb-2">
-                        <Clock className="w-4 h-4" /> Link Expiration
+                        <Clock className="w-4 h-4" /> Code Expiration
                       </label>
                       <select 
                         value={expiry} 
@@ -279,7 +319,7 @@ const EncryptPage: React.FC = () => {
                   <div className="flex items-start gap-3 p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/10">
                     <AlertCircle className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
                     <p className="text-xs text-indigo-200/60 leading-relaxed">
-                      <strong>Note:</strong> Files are stored temporarily on our servers for {expiry}. Encrypted 100% locally before upload.
+                      <strong>Server Relay:</strong> Files are stored temporarily for {expiry}. We cannot see content (E2EE). 10MB Limit.
                     </p>
                   </div>
                 </motion.div>
@@ -303,25 +343,26 @@ const EncryptPage: React.FC = () => {
 
             {processState.status === 'success' ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-                {isShare && shareLink ? (
+                {isShare && shareCode ? (
                   // SHARE SUCCESS UI
                   <>
-                     <div className="bg-slate-950 border border-indigo-500/30 rounded-xl p-4 flex items-center justify-between gap-2 shadow-[0_0_15px_rgba(99,102,241,0.15)]">
-                      <code className="text-indigo-300 text-sm truncate flex-1 font-mono">{shareLink}</code>
+                     <div className="bg-slate-950 border border-indigo-500/30 rounded-xl p-6 flex flex-col items-center gap-4 shadow-[0_0_15px_rgba(99,102,241,0.15)]">
+                      <div className="text-sm text-indigo-300 uppercase tracking-widest font-semibold">Share Code</div>
+                      <code className="text-2xl md:text-3xl text-white font-mono font-bold tracking-tight text-center">{shareCode}</code>
                       <button 
                         type="button"
                         onClick={copyToClipboard}
-                        className="p-2 hover:bg-indigo-500/20 rounded-lg text-indigo-400 transition-colors"
-                        title="Copy to clipboard"
+                        className="flex items-center gap-2 px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 rounded-lg text-indigo-300 transition-colors text-sm"
                       >
-                        <Copy className="w-4 h-4" />
+                        <Copy className="w-4 h-4" /> Copy Code
                       </button>
                     </div>
+                    <p className="text-center text-xs text-slate-500">Share this code securely with the recipient.</p>
                     <button 
                       type="button"
                       onClick={() => {
                         setProcessState({ status: 'idle' });
-                        setShareLink(null);
+                        setShareCode(null);
                         setFile(null);
                         setPassword('');
                         setConfirmPassword('');
@@ -363,7 +404,7 @@ const EncryptPage: React.FC = () => {
               // DEFAULT ACTION BUTTON
               <button 
                 type="submit"
-                disabled={processState.status === 'processing' || !file || !password}
+                disabled={processState.status === 'processing' || !file || !password || (isShare && !serviceAvailable)}
                 className={`w-full flex items-center justify-center gap-2 text-white font-bold py-4 rounded-xl transition-all ${
                   isShare 
                     ? 'bg-indigo-500 hover:bg-indigo-400 shadow-[0_4px_20px_rgba(99,102,241,0.2)]' 
@@ -373,10 +414,10 @@ const EncryptPage: React.FC = () => {
                 {processState.status === 'processing' ? (
                   <>
                     <RefreshCw className="w-5 h-5 animate-spin" /> 
-                    {processState.progress ? `Uploading ${processState.progress}%` : 'Processing...'}
+                    {processState.progress ? `Processing` : 'Processing...'}
                   </>
                 ) : (
-                   isShare ? 'Encrypt & Create Link' : 'Encrypt File'
+                   isShare ? 'Upload to Relay' : 'Encrypt File'
                 )}
               </button>
             )}

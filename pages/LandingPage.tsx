@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { 
   ShieldCheck, ArrowRight, FileKey, ChevronDown, Lock, LockOpen, 
   Eye, EyeOff, Archive, 
-  Ghost, HardDrive, FileText, Sparkles
+  Ghost, HardDrive, FileText, Sparkles, DownloadCloud
 } from 'lucide-react';
 
 // --- Animated Icon Components ---
@@ -373,18 +373,7 @@ const LandingPage: React.FC = () => {
           style={{ y: heroTextY, opacity: heroOpacity, scale: heroScale }}
           className="text-center px-6 max-w-6xl mx-auto z-20 flex flex-col items-center"
         >
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-            className="inline-flex items-center gap-2 mb-8 px-5 py-2.5 rounded-full bg-slate-900/50 border border-slate-700/50 text-emerald-400 text-sm font-medium backdrop-blur-md hover:bg-slate-800/50 transition-colors cursor-default shadow-lg shadow-emerald-900/10"
-          >
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            Secure Vault v2.0
-          </motion.div>
+          {/* Badge Removed per request */}
           
           <motion.h1 
             initial={{ opacity: 0, y: 40 }}
@@ -409,20 +398,29 @@ const LandingPage: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
-            className="flex flex-col sm:flex-row items-center gap-4"
+            className="flex flex-col items-center gap-6"
           >
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <Link 
+                to="/encrypt" 
+                className="group relative px-8 py-4 bg-white text-slate-950 font-bold rounded-full text-lg transition-all hover:scale-105 hover:shadow-[0_0_40px_rgba(255,255,255,0.3)] flex items-center gap-2 overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-cyan-400 opacity-0 group-hover:opacity-10 transition-opacity"></div>
+                Start Encrypting <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+              <Link 
+                to="/decrypt" 
+                className="px-8 py-4 bg-slate-900 text-white font-semibold rounded-full text-lg border border-slate-700 hover:bg-slate-800 transition-all hover:border-slate-500 flex items-center gap-2"
+              >
+                Unlock Files <FileKey className="w-4 h-4" />
+              </Link>
+            </div>
+
             <Link 
-              to="/encrypt" 
-              className="group relative px-8 py-4 bg-white text-slate-950 font-bold rounded-full text-lg transition-all hover:scale-105 hover:shadow-[0_0_40px_rgba(255,255,255,0.3)] flex items-center gap-2 overflow-hidden"
+              to="/retrieve" 
+              className="group flex items-center gap-2 text-slate-400 hover:text-indigo-400 transition-colors text-sm font-medium mt-2"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-cyan-400 opacity-0 group-hover:opacity-10 transition-opacity"></div>
-              Start Encrypting <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </Link>
-            <Link 
-              to="/decrypt" 
-              className="px-8 py-4 bg-slate-900 text-white font-semibold rounded-full text-lg border border-slate-700 hover:bg-slate-800 transition-all hover:border-slate-500 flex items-center gap-2"
-            >
-              Unlock Files <FileKey className="w-4 h-4" />
+              <DownloadCloud className="w-4 h-4 group-hover:animate-bounce" /> Got a share code? Retrieve file here
             </Link>
           </motion.div>
         </motion.div>
